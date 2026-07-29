@@ -5,19 +5,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Auth & Database
-    JWT_SECRET: str = "your_shared_jwt_secret_key_here"
-    JWT_ALGORITHM: str = "HS256"
-    MONGO_URI: str = "mongodb://localhost:27017"
-    MONGO_DB_NAME: str = "chatbot_db"
-    REDIS_URL: str = "redis://localhost:6379/0"
-    ANTHROPIC_API_KEY: str = ""
-    ALLOWED_ORIGINS: str = "*"
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+    MONGO_URI: str
+    MONGO_DB_NAME: str
+    REDIS_URL: str
+    ANTHROPIC_API_KEY: str
+    ALLOWED_ORIGINS: str
 
     # Qdrant Cloud & Vector Search Configuration
-    QDRANT_URL: str  # Required, no default - cloud cluster URL
-    QDRANT_API_KEY: str  # Required, no default - cloud API key
-    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
-    AVAILABLE_COLLECTIONS: Union[str, List[str]] = ["gita_collection", "mahabharata_collection"]
+    QDRANT_URL: str  
+    QDRANT_API_KEY: str  
+    EMBEDDING_MODEL_NAME: str
+    AVAILABLE_COLLECTIONS: Union[str, List[str]]
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -39,7 +39,6 @@ class Settings(BaseSettings):
             return self.AVAILABLE_COLLECTIONS
         if isinstance(self.AVAILABLE_COLLECTIONS, str):
             return [c.strip() for c in self.AVAILABLE_COLLECTIONS.split(",") if c.strip()]
-        return ["gita_collection", "mahabharata_collection"]
 
 
 # Instantiate settings (will validate required env vars)
