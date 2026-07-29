@@ -4,7 +4,12 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
 
 # Virtual environments
-.venv
+.venv/
+
+# Environment variables
+.env
+
+# Note: uv.lock is committed to lock dependencies deterministically
