@@ -47,5 +47,4 @@ try:
 except Exception as e:
     # Print a helpful startup error if QDRANT_URL or QDRANT_API_KEY are missing
     print(f"\n[CONFIG ERROR] Failed to load application configuration: {e}")
-    print("Please set QDRANT_URL and QDRANT_API_KEY in your .env file.\n")
     raise e

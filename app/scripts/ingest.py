@@ -18,15 +18,12 @@ def run_ingest(file_path: str, source_name: str, collection_name: str, chunk_siz
     and upserts points into a Qdrant Cloud vector collection.
     """
     if not os.path.exists(file_path):
-        print(f"[ERROR] Source text file not found: {file_path}")
         sys.exit(1)
 
-    print(f"Reading file: {file_path}")
     with open(file_path, "r", encoding="utf-8") as f:
         text_content = f.read()
 
     if not text_content.strip():
-        print(f"[ERROR] Source text file is empty: {file_path}")
         sys.exit(1)
 
     # 1. Chunk text using RecursiveCharacterTextSplitter
@@ -41,7 +38,6 @@ def run_ingest(file_path: str, source_name: str, collection_name: str, chunk_siz
     print(f"Generated {total_chunks} text chunks.")
 
     # 2. Connect to Qdrant Cloud
-    print(f"Connecting to Qdrant Cloud at {settings.QDRANT_URL}...")
     client = QdrantClient(
         url=settings.QDRANT_URL,
         api_key=settings.QDRANT_API_KEY,
@@ -52,11 +48,9 @@ def run_ingest(file_path: str, source_name: str, collection_name: str, chunk_siz
     collections_response = client.get_collections()
     existing_collections = [c.name for c in collections_response.collections]
 
-    # Model dimension for all-MiniLM-L6-v2 is 384
     vector_dimension = 384
 
     if collection_name not in existing_collections:
-        print(f"Creating new Qdrant collection '{collection_name}' (vector size={vector_dimension}, metric=COSINE)...")
         client.create_collection(
             collection_name=collection_name,
             vectors_config=VectorParams(
@@ -64,11 +58,6 @@ def run_ingest(file_path: str, source_name: str, collection_name: str, chunk_siz
                 distance=Distance.COSINE,
             ),
         )
-    else:
-        print(f"Qdrant collection '{collection_name}' already exists.")
-
-    # 4. Batch embed and upsert chunks
-    print(f"Embedding and upserting in batches of {batch_size}...")
 
     for i in range(0, total_chunks, batch_size):
         batch_chunks = chunks[i : i + batch_size]
