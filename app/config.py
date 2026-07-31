@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     MONGO_URI: str
     MONGO_DB_NAME: str
     REDIS_URL: str
-    ANTHROPIC_API_KEY: str
+    GEMINI_API_KEY: str
     ALLOWED_ORIGINS: str
 
     # Qdrant Cloud & Vector Search Configuration

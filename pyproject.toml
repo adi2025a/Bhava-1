@@ -5,7 +5,7 @@ description = "FastAPI Chatbot Microservice running alongside Node.js backend"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=0.40.0",
+    "google-genai>=1.0.0",
     "fastapi>=0.110.0",
     "httpx>=0.25.0",
     "langchain-text-splitters>=0.0.1",

@@ -1,5 +1,8 @@
 from typing import AsyncGenerator, List, Dict, Any, Optional
-import anthropic
+
+from google import genai
+from google.genai import types
+
 from app.config import settings
 
 
@@ -7,25 +10,31 @@ async def stream_llm_response(
     messages: List[Dict[str, Any]],
     system_prompt: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
-    """
-    Streams response text chunks from Anthropic Claude API.
-    Supports an optional system_prompt parameter for RAG instructions and context.
-    Handles exceptions gracefully by yielding an error message block.
-    """
     try:
-        client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        kwargs: Dict[str, Any] = {
-            "model": "claude-sonnet-5",
-            "max_tokens": 1024,
-            "messages": messages,
-        }
-        if system_prompt:
-            kwargs["system"] = system_prompt
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-        async with client.messages.stream(**kwargs) as stream:
-            async for text in stream.text_stream:
-                yield text
-    except anthropic.APIError as err:
-        yield f"\n[LLM API Error: {err.message}]"
+        # Gemini uses "model" for assistant role, not "assistant"
+        contents = [
+            types.Content(
+                role="model" if msg["role"] == "assistant" else "user",
+                parts=[types.Part.from_text(text=msg["content"])],
+            )
+            for msg in messages
+        ]
+
+        config = types.GenerateContentConfig(
+            max_output_tokens=1024,
+            system_instruction=system_prompt or None,
+        )
+
+        stream = await client.aio.models.generate_content_stream(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=config,
+        )
+        async for chunk in stream:
+            if chunk.text:
+                yield chunk.text
+
     except Exception as e:
         yield f"\n[LLM Streaming Error: {str(e)}]"
