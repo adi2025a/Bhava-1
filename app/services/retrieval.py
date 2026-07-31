@@ -63,10 +63,13 @@ def search_context(query: str, collection_name: str, top_k: int = 5) -> List[Dic
             payload = hit.payload or {}
             results.append({
                 "text": payload.get("text", ""),
+                "sanskrit": payload.get("sanskrit", ""),
+                "transliteration": payload.get("transliteration", ""),
+                "translations": payload.get("translations", {}),
+                "primary_translator": payload.get("primary_translator", ""),
                 "source": payload.get("source", collection_name),
-                "chapter": payload.get("chapter", None),
-                "verse": payload.get("verse", None),
-                "chunk_index": payload.get("chunk_index", None),
+                "chapter": payload.get("chapter"),
+                "verse": payload.get("verse"),
                 "score": float(hit.score),
             })
         return results

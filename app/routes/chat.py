@@ -21,15 +21,12 @@ router = APIRouter(prefix="/chat", tags=["Chatbot"])
 
 
 def _build_rag_system_prompt(context_chunks: list[dict]) -> str:
-    """
-    Builds a system prompt containing retrieved scripture context chunks
-    with instructions for accurate citation and honest fallback.
-    """
     if not context_chunks:
         return (
-            "You are a helpful and respectful assistant specializing in sacred Hindu scriptures. "
-            "No specific retrieved scripture passages were found for this query. "
-            "Provide a general respectful answer, or gently let the user know that relevant passages were not retrieved."
+            "You are a wise and respectful assistant specializing in sacred Hindu scriptures, "
+            "especially the Bhagavad Gita. No specific passages were retrieved for this query. "
+            "Answer from your general knowledge of the scriptures, clearly noting that no specific "
+            "passages were retrieved."
         )
 
     context_str_list = []
@@ -37,28 +34,47 @@ def _build_rag_system_prompt(context_chunks: list[dict]) -> str:
         source = chunk.get("source", "Unknown Source")
         chapter = chunk.get("chapter")
         verse = chunk.get("verse")
-        citation_parts = [f"Source: {source}"]
-        if chapter:
-            citation_parts.append(f"Chapter: {chapter}")
-        if verse:
-            citation_parts.append(f"Verse: {verse}")
-        citation = ", ".join(citation_parts)
+        citation = f"{source}, Chapter {chapter}, Verse {verse}"
 
-        text = chunk.get("text", "").strip()
-        context_str_list.append(f"[{idx}] ({citation})\n{text}")
+        lines = [f"[{idx}] {citation}"]
+
+        sanskrit = chunk.get("sanskrit", "").strip()
+        if sanskrit:
+            lines.append(f"Sanskrit: {sanskrit}")
+
+        transliteration = chunk.get("transliteration", "").strip()
+        if transliteration:
+            lines.append(f"Transliteration: {transliteration}")
+
+        lines.append(f"Primary meaning: {chunk.get('text', '').strip()}")
+
+        # Include alternate commentator translations if available
+        translations = chunk.get("translations", {})
+        primary_key = chunk.get("primary_translator", "")
+        alternates = [
+            f"  [{t['author']}]: {t['translation']}"
+            for k, t in translations.items()
+            if k != primary_key and t.get("translation")
+        ]
+        if alternates:
+            lines.append("Other commentaries:")
+            lines.extend(alternates[:3])  # cap at 3 alternates to avoid prompt bloat
+
+        context_str_list.append("\n".join(lines))
 
     formatted_context = "\n\n".join(context_str_list)
 
     return (
-        "You are a wise and scholarly assistant specializing in sacred Hindu texts (Bhagavad Gita, Mahabharata, etc.).\n"
-        "Answer the user's question accurately using ONLY the provided retrieved context passages below.\n\n"
+        "You are a wise and scholarly assistant specializing in sacred Hindu texts, "
+        "especially the Bhagavad Gita.\n\n"
         "Guidelines:\n"
-        "1. Base your answer strictly on the provided scripture passages.\n"
-        "2. Cite the source (and chapter/verse if available) for the claims or verses you mention.\n"
-        "3. If the provided context passages do not contain enough information to answer the question, state honestly: "
-        "'Based on the retrieved scripture passages, I do not have enough context to answer this question accurately.' "
-        "Do not invent facts or guess beyond the context.\n\n"
-        f"--- RETRIEVED SCRIPTURE CONTEXT ---\n{formatted_context}\n--- END CONTEXT ---"
+        "1. Ground your answer in the retrieved scripture passages below.\n"
+        "2. Always cite the chapter and verse when referencing a passage.\n"
+        "3. Where multiple commentaries are provided, synthesize the perspectives to give a rich answer.\n"
+        "4. You may draw on your broader knowledge of the Gita to add depth, but clearly distinguish "
+        "retrieved passages from your general knowledge.\n"
+        "5. Be respectful, clear, and spiritually insightful.\n\n"
+        f"--- RETRIEVED SCRIPTURE PASSAGES ---\n{formatted_context}\n--- END PASSAGES ---"
     )
 
 
