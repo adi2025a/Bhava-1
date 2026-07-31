@@ -9,7 +9,6 @@ import redis.asyncio as redis
 
 from app.routes.health import router as health_router
 from app.routes.chat import router as chat_router
-from app.services.embeddings import load_embedding_model
 from app.services.retrieval import get_qdrant_client
 
 
@@ -18,7 +17,7 @@ async def app_lifespan(app: FastAPI):
     """
     FastAPI Lifespan event handler:
     1. Connects to MongoDB and Redis async clients.
-    2. Warm loads SentenceTransformer embedding model into memory.
+    2. Configures API-based embedding service.
     3. Verifies Qdrant Cloud connection and credentials.
     """
     print("\n[STARTUP] Starting FastAPI Chatbot RAG Microservice...")
@@ -28,13 +27,8 @@ async def app_lifespan(app: FastAPI):
     db_container.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_URI)
     db_container.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
-    # 2. Warm load embedding model once at startup
-    print(f"[STARTUP] Warm-loading embedding model '{settings.EMBEDDING_MODEL_NAME}'...")
-    try:
-        load_embedding_model()
-    except Exception as e:
-        print(f"[STARTUP ERROR] Failed to load embedding model: {e}")
-        raise e
+    # 2. Embedding service configuration
+    print(f"[STARTUP] API Embedding service initialized for model '{settings.EMBEDDING_MODEL_NAME}'.")
 
     # 3. Verify Qdrant Cloud connection & credentials
     print(f"[STARTUP] Verifying Qdrant Cloud connectivity ({settings.QDRANT_URL})...")

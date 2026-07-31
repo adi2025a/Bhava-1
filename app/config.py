@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str  
     EMBEDDING_MODEL_NAME: str
     AVAILABLE_COLLECTIONS: Union[str, List[str]]
+    HF_TOKEN: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

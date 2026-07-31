@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List
 from qdrant_client import QdrantClient
-from qdrant_client.http.exceptions import UnexpectedResponse, QdrantException
+from qdrant_client.http.exceptions import UnexpectedResponse, ResponseHandlingException
 
 from app.config import settings
 from app.services.embeddings import embed_text
@@ -81,7 +81,7 @@ def search_context(query: str, collection_name: str, top_k: int = 5) -> List[Dic
         logger.error(f"[QDRANT CLOUD ERROR] API Error searching '{collection_name}': {e.status_code} {e.content}")
         return []
 
-    except QdrantException as e:
+    except ResponseHandlingException as e:
         logger.error(f"[QDRANT CLOUD ERROR] Qdrant exception while querying '{collection_name}': {e}")
         return []
 
