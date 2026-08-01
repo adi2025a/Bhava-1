@@ -24,8 +24,8 @@ def _build_rag_system_prompt(context_chunks: list[dict]) -> str:
     if not context_chunks:
         return (
             "You are a wise and respectful assistant specializing in sacred Hindu scriptures, "
-            "especially the Bhagavad Gita. No specific passages were retrieved for this query. "
-            "Answer from your general knowledge of the scriptures, clearly noting that no specific "
+            "especially the Bhagavad Gita."
+            "Answer from your general knowledge of the scriptures"
             "passages were retrieved."
         )
 
@@ -65,15 +65,6 @@ def _build_rag_system_prompt(context_chunks: list[dict]) -> str:
     formatted_context = "\n\n".join(context_str_list)
 
     return (
-        "You are a wise and scholarly assistant specializing in sacred Hindu texts, "
-        "especially the Bhagavad Gita.\n\n"
-        "Guidelines:\n"
-        "1. Ground your answer in the retrieved scripture passages below.\n"
-        "2. Always cite the chapter and verse when referencing a passage.\n"
-        "3. Where multiple commentaries are provided, synthesize the perspectives to give a rich answer.\n"
-        "4. You may draw on your broader knowledge of the Gita to add depth, but clearly distinguish "
-        "retrieved passages from your general knowledge.\n"
-        "5. Be respectful, clear, and spiritually insightful.\n\n"
         f"--- RETRIEVED SCRIPTURE PASSAGES ---\n{formatted_context}\n--- END PASSAGES ---"
     )
 
