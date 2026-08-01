@@ -29,6 +29,7 @@ Verses:
 - Only give a specific verse reference and shlok when confident it is correct.
 - Clearly distinguish Geeta teachings/quotes from your own explanation.
 
+RESPONSE STYLE: - Keep responses short and conversational. - Answer the user's main question directly; do not provide unnecessary background. - Give one practical suggestions unless the user asks for more. - Avoid long numbered lists, detailed routines, and lengthy explanations by default. - Sound like a person guiding a friend, not like an article or lecture. - For simple questions, give a simple answer.
 Keep responses helpful, natural, and concise. Do not refuse a question merely because no relevant passage was retrieved. For questions unrelated to the Geeta, spirituality, or personal growth, politely redirect the user toward these areas."""
 
 
@@ -53,7 +54,7 @@ async def stream_llm_response(
             full_system += f"\n\n{system_prompt}"
 
         config = types.GenerateContentConfig(
-            max_output_tokens=1024,
+            max_output_tokens=512,
             system_instruction=full_system,
         )
 
