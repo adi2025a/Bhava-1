@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 import json
+import logging
 import uuid
 from typing import Any, Dict
 
@@ -16,6 +17,8 @@ from app.models import ChatRequest, serialize_doc, serialize_docs
 from app.services.context import append_context, get_context
 from app.services.llm import stream_llm_response
 from app.services.retrieval import search_all_collections
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Chatbot"])
 
@@ -83,31 +86,39 @@ async def _persist_chat_interaction(
     """
     now = datetime.now(timezone.utc)
 
-    # 1. Update Redis context with assistant reply
-    await append_context(redis_client, conversation_id, "assistant", assistant_reply)
+    try:
+        # 1. Update Redis context with assistant reply
+        await append_context(redis_client, conversation_id, "assistant", assistant_reply)
 
-    # 2. Persist user and assistant messages in MongoDB
-    user_msg_doc = {
-        "conversation_id": conversation_id,
-        "user_id": user_id,
-        "role": "user",
-        "content": user_message,
-        "timestamp": now,
-    }
-    assistant_msg_doc = {
-        "conversation_id": conversation_id,
-        "user_id": user_id,
-        "role": "assistant",
-        "content": assistant_reply,
-        "timestamp": now,
-    }
-    await db.messages.insert_many([user_msg_doc, assistant_msg_doc])
+        # 2. Persist user and assistant messages in MongoDB
+        user_msg_doc = {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "role": "user",
+            "content": user_message,
+            "timestamp": now,
+        }
+        assistant_msg_doc = {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "role": "assistant",
+            "content": assistant_reply,
+            "timestamp": now,
+        }
+        await db.messages.insert_many([user_msg_doc, assistant_msg_doc])
 
-    # 3. Update conversation's last_message_at
-    await db.conversations.update_one(
-        {"conversation_id": conversation_id},
-        {"$set": {"last_message_at": now}}
-    )
+        # 3. Update conversation's last_message_at
+        await db.conversations.update_one(
+            {"conversation_id": conversation_id},
+            {"$set": {"last_message_at": now}}
+        )
+        logger.debug("Persisted chat interaction for conversation_id=%s", conversation_id)
+    except Exception:
+        logger.exception(
+            "Failed to persist chat interaction for conversation_id=%s (reply is not lost to the "
+            "client, only the stored history is affected)",
+            conversation_id,
+        )
 
 
 @router.get("/me")
@@ -137,6 +148,11 @@ async def stream_chat(
     user_id = payload["user_id"]
     conv_id = req.conversation_id
 
+    logger.info(
+        "Chat request received: user_id=%s conversation_id=%s message_len=%d collections=%s",
+        user_id, conv_id or "<new>", len(req.message), req.collections or "default",
+    )
+
     # Validate or create conversation doc
     if not conv_id:
         conv_id = str(uuid.uuid4())
@@ -150,6 +166,7 @@ async def stream_chat(
             "last_message_at": now,
         }
         await db.conversations.insert_one(conv_doc)
+        logger.info("Created new conversation_id=%s for user_id=%s", conv_id, user_id)
     else:
         existing_conv = await db.conversations.find_one({"conversation_id": conv_id})
         if not existing_conv:
@@ -172,6 +189,10 @@ async def stream_chat(
         collection_names=target_collections,
         top_k_per_collection=3
     )
+    logger.info(
+        "Retrieved %d context chunk(s) from collections=%s for conversation_id=%s",
+        len(context_chunks), target_collections, conv_id,
+    )
 
     # 2. Build RAG System Prompt
     system_prompt = _build_rag_system_prompt(context_chunks)
@@ -190,12 +211,19 @@ async def stream_chat(
         yield f"data: {json.dumps({'conversation_id': conv_id})}\n\n"
 
         full_reply = ""
-        # Stream text chunks from Claude with RAG system prompt
-        async for chunk in stream_llm_response(messages_for_llm, system_prompt=system_prompt):
-            full_reply += chunk
-            yield f"data: {json.dumps({'text': chunk})}\n\n"
+        try:
+            # Stream text chunks from Claude with RAG system prompt
+            async for chunk in stream_llm_response(messages_for_llm, system_prompt=system_prompt):
+                full_reply += chunk
+                yield f"data: {json.dumps({'text': chunk})}\n\n"
+        except Exception:
+            logger.exception("LLM streaming failed for conversation_id=%s", conv_id)
+            raise
 
         yield "data: [DONE]\n\n"
+        logger.info(
+            "LLM stream complete for conversation_id=%s reply_len=%d", conv_id, len(full_reply)
+        )
 
         # Trigger background task for MongoDB & Redis persistence
         asyncio.create_task(
@@ -285,6 +313,7 @@ async def delete_conversation(
     await db.conversations.delete_one({"conversation_id": conversation_id})
     await db.messages.delete_many({"conversation_id": conversation_id})
     await redis_client.delete(f"chat:context:{conversation_id}")
+    logger.info("Deleted conversation_id=%s for user_id=%s", conversation_id, user_id)
 
     return {
         "message": "Conversation deleted successfully",

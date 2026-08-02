@@ -11,11 +11,10 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, PointStruct, VectorParams
 
 from app.config import settings
+from app.logging_config import configure_logging
 from app.services.embeddings import embed_texts
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+configure_logging(settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 
@@ -140,7 +139,7 @@ async def run_ingest(
     try:
         existing = [c.name for c in qdrant.get_collections().collections]
         if collection_name not in existing:
-            print(f"Creating collection '{collection_name}' with 384-dim COSINE vectors...")
+            logger.info("Creating collection '%s' with 384-dim COSINE vectors...", collection_name)
             qdrant.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=384, distance=Distance.COSINE),
@@ -151,7 +150,7 @@ async def run_ingest(
         sys.exit(1)
 
     # Fetch chapter metadata
-    print("Fetching chapter metadata from vedicscriptures.github.io...")
+    logger.info("Fetching chapter metadata from vedicscriptures.github.io...")
     try:
         resp = await async_http.get("https://vedicscriptures.github.io/chapters/")
         resp.raise_for_status()
@@ -177,9 +176,9 @@ async def run_ingest(
         sys.exit(1)
 
     total_expected = sum(chapter_verse_counts[ch] for ch in target_chapters)
-    print(
-        f"Ingesting {len(target_chapters)} chapters "
-        f"(Ch {start_chapter}-{end_chapter}), {total_expected} verses planned."
+    logger.info(
+        "Ingesting %d chapters (Ch %d-%d), %d verses planned.",
+        len(target_chapters), start_chapter, end_chapter, total_expected,
     )
 
     total_ingested = 0
@@ -233,29 +232,29 @@ async def run_ingest(
                 if len(batch_buffer) >= batch_size:
                     count = await flush_batch(qdrant, collection_name, source_name, batch_buffer)
                     total_ingested += count
-                    print(f"Upserted batch of {count} verses (total: {total_ingested})")
+                    logger.info("Upserted batch of %d verses (total: %d)", count, total_ingested)
                     batch_buffer.clear()
 
-            print(f"Chapter {ch}: {ch_count}/{v_count} verses fetched and queued")
+            logger.info("Chapter %d: %d/%d verses fetched and queued", ch, ch_count, v_count)
 
         if batch_buffer:
             count = await flush_batch(qdrant, collection_name, source_name, batch_buffer)
             total_ingested += count
-            print(f"Upserted final batch of {count} verses (total: {total_ingested})")
+            logger.info("Upserted final batch of %d verses (total: %d)", count, total_ingested)
 
     finally:
         await async_http.aclose()
 
     elapsed = time.time() - start_time
-    print("\n" + "=" * 50)
-    print("INGESTION SUMMARY")
-    print("=" * 50)
-    print(f"Total verses ingested : {total_ingested}")
-    print(f"Total verses skipped  : {len(skipped)}")
+    logger.info("=" * 50)
+    logger.info("INGESTION SUMMARY")
+    logger.info("=" * 50)
+    logger.info("Total verses ingested : %d", total_ingested)
+    logger.info("Total verses skipped  : %d", len(skipped))
     if skipped:
-        print(f"Skipped               : {', '.join(skipped)}")
-    print(f"Time taken            : {elapsed:.2f}s")
-    print("=" * 50 + "\n")
+        logger.info("Skipped               : %s", ", ".join(skipped))
+    logger.info("Time taken            : %.2fs", elapsed)
+    logger.info("=" * 50)
 
 
 async def main():

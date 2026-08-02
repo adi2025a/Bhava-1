@@ -1,9 +1,12 @@
+import logging
 from typing import AsyncGenerator, List, Dict, Any, Optional
 
 from google import genai
 from google.genai import types
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 BHAGWATI_PERSONA = """You are Bhagwati, a warm, wise, and spiritually grounded AI assistant inspired by the Shreemad Bhagwad Geeta.
@@ -58,6 +61,8 @@ async def stream_llm_response(
             system_instruction=full_system,
         )
 
+        logger.debug("Starting Gemini stream: %d message(s), system_prompt_len=%d", len(messages), len(full_system))
+
         stream = await client.aio.models.generate_content_stream(
             model="gemini-2.5-flash",
             contents=contents,
@@ -67,5 +72,6 @@ async def stream_llm_response(
             if chunk.text:
                 yield chunk.text
 
-    except Exception as e:
-        yield f"\n[LLM Streaming Error: {str(e)}]"
+    except Exception:
+        logger.exception("Gemini streaming call failed")
+        yield "\n[LLM Streaming Error: the assistant is temporarily unavailable, please try again.]"

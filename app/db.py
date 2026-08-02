@@ -1,8 +1,11 @@
+import logging
 from contextlib import asynccontextmanager
 import motor.motor_asyncio
 import redis.asyncio as redis
 from fastapi import FastAPI
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseContainer:
@@ -39,6 +42,7 @@ async def lifespan(app: FastAPI):
 def get_db() -> motor.motor_asyncio.AsyncIOMotorDatabase:
     """Dependency accessor for MongoDB database instance."""
     if db_container.mongo_client is None:
+        logger.error("get_db() called before MongoDB connection was initialized.")
         raise RuntimeError("Database connection is not initialized.")
     return db_container.mongo_client[settings.MONGO_DB_NAME]
 
@@ -46,5 +50,6 @@ def get_db() -> motor.motor_asyncio.AsyncIOMotorDatabase:
 def get_redis() -> redis.Redis:
     """Dependency accessor for Redis client instance."""
     if db_container.redis_client is None:
+        logger.error("get_redis() called before Redis connection was initialized.")
         raise RuntimeError("Redis connection is not initialized.")
     return db_container.redis_client

@@ -6,7 +6,7 @@ from qdrant_client.http.exceptions import UnexpectedResponse, ResponseHandlingEx
 from app.config import settings
 from app.services.embeddings import embed_text
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 _qdrant_client: QdrantClient | None = None
 
@@ -72,6 +72,7 @@ def search_context(query: str, collection_name: str, top_k: int = 5) -> List[Dic
                 "verse": payload.get("verse"),
                 "score": float(hit.score),
             })
+        logger.debug("Collection '%s' returned %d hit(s) for query", collection_name, len(results))
         return results
 
     except UnexpectedResponse as e:

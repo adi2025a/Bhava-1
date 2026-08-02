@@ -1,6 +1,9 @@
+import logging
 from typing import List, Union
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -12,6 +15,9 @@ class Settings(BaseSettings):
     REDIS_URL: str
     GEMINI_API_KEY: str
     ALLOWED_ORIGINS: str
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
 
     # Qdrant Cloud & Vector Search Configuration
     QDRANT_URL: str  
@@ -46,6 +52,7 @@ class Settings(BaseSettings):
 try:
     settings = Settings()
 except Exception as e:
-    # Print a helpful startup error if QDRANT_URL or QDRANT_API_KEY are missing
-    print(f"\n[CONFIG ERROR] Failed to load application configuration: {e}")
+    # pydantic-settings validation errors list missing/invalid field names only,
+    # never the values, so this is safe to log without leaking secrets.
+    logger.error("Failed to load application configuration: %s", e)
     raise e

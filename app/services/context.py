@@ -1,6 +1,9 @@
 import json
+import logging
 from typing import List, Dict, Any
 import redis.asyncio as redis
+
+logger = logging.getLogger(__name__)
 
 
 def _context_key(conversation_id: str) -> str:
@@ -19,7 +22,9 @@ async def get_context(redis_client: redis.Redis, conversation_id: str) -> List[D
             msg = json.loads(item)
             context.append(msg)
         except Exception:
+            logger.warning("Skipping malformed context entry for conversation_id=%s", conversation_id)
             continue
+    logger.debug("Loaded %d context message(s) for conversation_id=%s", len(context), conversation_id)
     return context
 
 

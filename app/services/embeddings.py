@@ -4,7 +4,7 @@ from typing import List, Union
 import httpx
 from app.config import settings
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 def _get_headers() -> dict:
@@ -83,6 +83,8 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
         "options": {"wait_for_model": True}
     }
 
+    logger.debug("Requesting embeddings for %d text(s) using model '%s'", len(texts), model_name)
+
     try:
         with httpx.Client(timeout=30.0) as client:
             response = client.post(url, json=payload, headers=headers)
@@ -103,7 +105,9 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
 
             response.raise_for_status()
             data = response.json()
-            return _process_hf_response(data)
+            vectors = _process_hf_response(data)
+            logger.debug("Received %d embedding vector(s) from HuggingFace API", len(vectors))
+            return vectors
 
     except httpx.HTTPStatusError as e:
         logger.error(f"[EMBEDDINGS ERROR] HTTP error from HuggingFace API: {e.response.status_code} - {e.response.text}")
